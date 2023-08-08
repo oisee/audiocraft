@@ -222,7 +222,7 @@ def ui_full(launch_kwargs):
                         radio = gr.Radio(["file", "mic"], value="file",
                                          label="Condition on a melody (optional) File or Mic")
                         melody = gr.Audio(source="upload", type="numpy", label="File",
-                                          interactive=True, elem_id="melody-input")
+                                          interactive=False, elem_id="melody-input")
                 with gr.Row():
                     submit = gr.Button("Submit")
                     # Adapted from https://github.com/rkfg/audiocraft/blob/long/app.py, MIT license.
@@ -235,7 +235,7 @@ def ui_full(launch_kwargs):
                     decoder = gr.Radio(["Default", "MultiBand_Diffusion"],
                                        label="Decoder", value="Default", interactive=True)
                 with gr.Row():
-                    duration = gr.Slider(minimum=1, maximum=120, value=10, label="Duration", interactive=True)
+                    duration = gr.Slider(minimum=1, maximum=240, value=10, label="Duration", interactive=True)
                 with gr.Row():
                     topk = gr.Number(label="Top-k", value=250, interactive=True)
                     topp = gr.Number(label="Top-p", value=0, interactive=True)
