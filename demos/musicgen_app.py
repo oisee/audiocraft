@@ -231,9 +231,9 @@ def ui_full(launch_kwargs):
                     model = gr.Radio(["facebook/musicgen-melody", "facebook/musicgen-medium", "facebook/musicgen-small",
                                       "facebook/musicgen-large"],
                                      label="Model", value="facebook/musicgen-melody", interactive=True)
-                # with gr.Row():
-                #     decoder = gr.Radio(["Default", "MultiBand_Diffusion"],
-                #                        label="Decoder", value="Default", interactive=True)
+                with gr.Row():
+                    decoder = gr.Radio(["Default", "MultiBand_Diffusion"],
+                                       label="Decoder", value="Default", interactive=True)
                 with gr.Row():
                     duration = gr.Slider(minimum=1, maximum=240, value=10, label="Duration", interactive=True)
                 with gr.Row():
