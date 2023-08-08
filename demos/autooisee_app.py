@@ -208,10 +208,12 @@ def ui_full(launch_kwargs):
     with gr.Blocks() as interface:
         gr.Markdown(
             """
-            # MusicGen
-            This is your private demo for [MusicGen](https://github.com/facebookresearch/audiocraft),
+            # Oiseelator
+
+            This is the demo for [Oiseelator](https://github.com/oisee/audiocraft),
+            ( fork [MusicGen](https://github.com/facebookresearch/audiocraft) ]
             a simple and controllable model for music generation
-            presented at: ["Simple and Controllable Music Generation"](https://huggingface.co/papers/2306.05284)
+            presented at: ["Simple and Controllable Music Generation"](https://huggingface.co/papers/2306.05284).
             """
         )
         with gr.Row():
@@ -279,6 +281,54 @@ def ui_full(launch_kwargs):
                     "facebook/musicgen-melody",
                     "Default"
                 ],                                                                
+                [
+                    "a light and cheerly chiptune breakbeat psychedelic trance track, with syncopated drums, aery pads, and strong emotions",
+                    "./assets/oisee_iveseen.mp3",
+                    "facebook/musicgen-melody",
+                    "Default"
+                ],                
+                [
+                    "90s rock song with electric guitar and heavy drums",
+                    "./assets/oisee_iveseen.mp3",
+                    "facebook/musicgen-melody",
+                    "Default"
+                ],                
+                [
+                    "An 80s driving pop song with heavy drums and synth pads in the background",
+                    "./assets/oisee_iveseen.mp3",
+                    "facebook/musicgen-melody",
+                    "Default"
+                ],                                              
+                [
+                    "lofi slow bpm electro chill with organic samples and a strong beat",
+                    "./assets/oisee_iveseen.mp3",
+                    "facebook/musicgen-melody",
+                    "Default"
+                ],                      
+                [
+                    "a light and cheerly chiptune breakbeat psychedelic trance track, with syncopated drums, aery pads, and strong emotions",
+                    "./assets/oisee_olia.mp3",
+                    "facebook/musicgen-melody",
+                    "Default"
+                ],                
+                [
+                    "90s rock song with electric guitar and heavy drums",
+                    "./assets/oisee_olia.mp3",
+                    "facebook/musicgen-melody",
+                    "Default"
+                ],                
+                [
+                    "An 80s driving pop song with heavy drums and synth pads in the background",
+                    "./assets/oisee_olia.mp3",
+                    "facebook/musicgen-melody",
+                    "Default"
+                ],                                              
+                [
+                    "lofi slow bpm electro chill with organic samples and a strong beat",
+                    "./assets/oisee_olia.mp3",
+                    "facebook/musicgen-melody",
+                    "Default"
+                ],                                      
                 # [
                 #     "An 80s driving pop song with heavy drums and synth pads in the background",
                 #     "./assets/bach.mp3",
