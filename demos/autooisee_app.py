@@ -31,7 +31,6 @@ print(IS_BATCHED)
 MAX_BATCH_SIZE = 12
 BATCHED_DURATION = 15
 INTERRUPTING = False
-MBD = None
 # We have to wrap subprocess call to clean a bit the log when using gr.make_waveform
 _old_call = sp.call
 
@@ -96,9 +95,8 @@ def load_model(version='facebook/musicgen-melody'):
 
 def load_diffusion():
     global MBD
-    if MBD is None:
-        print("loading MBD")
-        MBD = MultiBandDiffusion.get_mbd_musicgen()
+    print("loading MBD")
+    MBD = MultiBandDiffusion.get_mbd_musicgen()
 
 
 def _do_predictions(texts, melodies, duration, progress=False, **gen_kwargs):
@@ -224,7 +222,7 @@ def ui_full(launch_kwargs):
                         radio = gr.Radio(["file", "mic"], value="file",
                                          label="Condition on a melody (optional) File or Mic")
                         melody = gr.Audio(source="upload", type="numpy", label="File",
-                                          interactive=True, elem_id="melody-input")
+                                          interactive=False, elem_id="melody-input")
                 with gr.Row():
                     submit = gr.Button("Submit")
                     # Adapted from https://github.com/rkfg/audiocraft/blob/long/app.py, MIT license.
@@ -235,7 +233,7 @@ def ui_full(launch_kwargs):
                                      label="Model", value="facebook/musicgen-melody", interactive=True)
                 with gr.Row():
                     decoder = gr.Radio(["Default", "MultiBand_Diffusion"],
-                                       label="Decoder", value="Default", interactive=True)
+                                       label="Decoder", value="Default", visible=False, interactive=False)
                 with gr.Row():
                     duration = gr.Slider(minimum=1, maximum=240, value=10, label="Duration", interactive=True)
                 with gr.Row():
@@ -264,17 +262,23 @@ def ui_full(launch_kwargs):
                     "Default"
                 ],                
                 [
-                    "a light and cheerly chiptune breakbeat psychedelic trance track, with syncopated drums, aery pads, and strong emotions",
+                    "90s rock song with electric guitar and heavy drums",
                     "./assets/oisee_scrolleqs.mp3",
                     "facebook/musicgen-melody",
                     "Default"
                 ],                
                 [
-                    "a light and cheerly chiptune breakbeat psychedelic trance track, with syncopated drums, aery pads, and strong emotions",
+                    "An 80s driving pop song with heavy drums and synth pads in the background",
                     "./assets/oisee_scrolleqs.mp3",
                     "facebook/musicgen-melody",
                     "Default"
-                ],                                                
+                ],                                              
+                [
+                    "lofi slow bpm electro chill with organic samples and a strong beat",
+                    "./assets/oisee_scrolleqs.mp3",
+                    "facebook/musicgen-melody",
+                    "Default"
+                ],                                                                
                 # [
                 #     "An 80s driving pop song with heavy drums and synth pads in the background",
                 #     "./assets/bach.mp3",
@@ -357,9 +361,10 @@ def ui_batched(launch_kwargs):
     with gr.Blocks() as demo:
         gr.Markdown(
             """
-            # MusicGen
+            # Oiseelator
 
-            This is the demo for [MusicGen](https://github.com/facebookresearch/audiocraft),
+            This is the demo for [Oiseelator](https://github.com/oisee/audiocraft),
+            ( fork [MusicGen](https://github.com/facebookresearch/audiocraft) ]
             a simple and controllable model for music generation
             presented at: ["Simple and Controllable Music Generation"](https://huggingface.co/papers/2306.05284).
             <br/>
