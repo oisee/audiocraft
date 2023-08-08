@@ -237,7 +237,7 @@ def ui_full(launch_kwargs):
                     decoder = gr.Radio(["Default", "MultiBand_Diffusion"],
                                        label="Decoder", value="Default", visible=False, interactive=False)
                 with gr.Row():
-                    duration = gr.Slider(minimum=1, maximum=240, value=10, label="Duration", interactive=True)
+                    duration = gr.Slider(minimum=1, maximum=2048, value=10, label="Duration", interactive=True)
                 with gr.Row():
                     topk = gr.Number(label="Top-k", value=250, interactive=True)
                     topp = gr.Number(label="Top-p", value=0, interactive=True)
