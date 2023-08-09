@@ -168,7 +168,8 @@ def _predict_one(prompt, melody, duration, topk=None, topp=None, temperature=Non
     print("video: ", rv)
     print("wav: ", rw)
 
-    filename = prompt.replace(" ", "_").replace(".", "").replace(",", "_").replace("?", "").replace("/", "").replace("\\", "")
+    shorten_prompt = prompt[0:30] if len(prompt) > 30 else prompt
+    filename = shorten_prompt.replace(" ", "_").replace(".", "").replace(",", "_").replace("?", "").replace("/", "").replace("\\", "")
     filepath = os.path.join("./_out/", filename)
 
     rv_filepath = filepath + rv.replace("/tmp/", "_")
