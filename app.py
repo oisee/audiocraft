@@ -6,7 +6,7 @@
 
 # Updated to account for UI changes from https://github.com/rkfg/audiocraft/blob/long/app.py
 # also released under the MIT license.
-import shutil
+
 import argparse
 from concurrent.futures import ProcessPoolExecutor
 import os
@@ -156,29 +156,6 @@ def predict_batched(texts, melodies):
     res = _do_predictions(texts, melodies, BATCHED_DURATION)
     return res
 
-def _predict_one(prompt, melody, duration, topk=None, topp=None, temperature=None, cfg_coef=None):
-    videos, wavs = _do_predictions(
-        [prompt], [melody], duration, progress=True,
-        top_k=topk, top_p=topp, temperature=temperature, cfg_coef=cfg_coef)
-        
-    rv, rw, rv2, rw2 = videos[0], wavs[0], None, None
-    # if USE_DIFFUSION:
-    #     rv2, rw2 = videos[1], wavs[1]
-
-    print("video: ", rv)
-    print("wav: ", rw)
-
-    filename = prompt.replace(" ", "_").replace(".", "").replace(",", "_").replace("?", "").replace("/", "").replace("\\", "")
-    filepath = os.path.join("./_out/", filename)
-
-    rv_filepath = filepath + rv.replace("/tmp/", "_")
-    rw_filepath = filepath + rw.replace("/tmp/", "_")
-
-    shutil.copy(rv, rv_filepath)
-    shutil.copy(rw, rw_filepath)
-
-    return rv, rw, rv2, rw2
-
 
 def predict_full(model, decoder, text, melody, duration, topk, topp, temperature, cfg_coef, progress=gr.Progress()):
     global INTERRUPTING
@@ -205,24 +182,12 @@ def predict_full(model, decoder, text, melody, duration, topk, topp, temperature
             raise gr.Error("Interrupted.")
     MODEL.set_custom_progress_callback(_progress)
 
-    prompts = text.split('\n')
-
-    rv, rw, rv2, rw2 = None, None, None, None
-
-    for prompt in prompts:
-        # Condense the paragraph
-        condensed_prompt = prompt.strip()
-        # Ignore empty lines
-        if not condensed_prompt:
-            continue
-
-        rv, rw, rv2, rw2 = _predict_one(condensed_prompt, melody, duration, topk, topp, temperature, cfg_coef)
-
-    return rv, rw, rv2, rw2
-
-    # if USE_DIFFUSION:
-    #     return videos[0], wavs[0], videos[1], wavs[1]
-    # return videos[0], wavs[0], None, None
+    videos, wavs = _do_predictions(
+        [text], [melody], duration, progress=True,
+        top_k=topk, top_p=topp, temperature=temperature, cfg_coef=cfg_coef)
+    if USE_DIFFUSION:
+        return videos[0], wavs[0], videos[1], wavs[1]
+    return videos[0], wavs[0], None, None
 
 
 def toggle_audio_src(choice):
