@@ -24,7 +24,16 @@ from audiocraft.data.audio_utils import convert_audio
 from audiocraft.data.audio import audio_write
 from audiocraft.models import MusicGen, MultiBandDiffusion
 
+from pydub import AudioSegment
+import eyed3
 
+import openai
+import json
+import os
+
+CACHE_FILE = "title_by_prompt.cache.json"
+
+       
 MODEL = None  # Last used model
 IS_BATCHED = "facebook/MusicGen" in os.environ.get('SPACE_ID', '')
 print(IS_BATCHED)
@@ -156,7 +165,86 @@ def predict_batched(texts, melodies):
     res = _do_predictions(texts, melodies, BATCHED_DURATION)
     return res
 
-def _predict_one(prompt, melody, duration, topk=None, topp=None, temperature=None, cfg_coef=None):
+def load_cache():
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_to_cache(prompt, title):
+    cache = load_cache()
+    cache[prompt] = title
+    with open(CACHE_FILE, 'w') as f:
+        json.dump(cache, f)
+
+def generate_title(prompt):
+    # Load cache
+    cache = load_cache()
+    
+    # Check if title is in cache
+    if prompt in cache:
+        return cache[prompt]
+    
+    message = {
+        "role": "system",
+        "content": "You are a creative music. Generate a title for the following content."
+    }
+    user_message = {
+        "role": "user",
+        "content": prompt
+    }
+    
+    response = openai.ChatCompletion.create(
+      model="gpt-3.5-turbo",
+      messages=[message, user_message]
+    )
+    
+    title = response.choices[0].message['content'].strip()
+    
+    # Save title to cache
+    save_to_cache(prompt, title)
+    
+    print("Title generated: ", title)
+    print("Based on prompt: ", prompt)
+
+    return title
+
+def extract_title(text):
+    if ":" in text:
+        title, prompt = text.split(":", 1)
+    else:
+        title = generate_title(text)
+        prompt = text
+    return title.strip(), prompt.strip()
+
+def convert_wav_to_mp3(wav_filepath, mp3_filepath, prompt, title, author="oisee", album="oiseelator", model="facebook/musicgen-melody", track_num=1 , melody=""):
+    audio = AudioSegment.from_wav(wav_filepath)
+    audio.export(mp3_filepath, format="mp3", bitrate="128k")
+
+    audiofile = eyed3.load(mp3_filepath)
+    
+    if audiofile.tag is None:
+        audiofile.initTag()
+    
+    print("melody: ", melody)
+
+    audiofile.tag.artist = author
+    audiofile.tag.title = title
+    audiofile.tag.album = album
+    audiofile.tag.genre = model
+    audiofile.tag.comments.set(prompt)
+    audiofile.tag.track_num = track_num
+#   audiofile.tag.composer = melody 
+#   audiofile.tag.lyrics.set(melody + "\\n" + prompt)
+    #audiofile.tag.composer = melody
+    audiofile.tag.save()
+
+
+def _predict_one(prompt, melody, duration, topk=None, topp=None, temperature=None, cfg_coef=None, author="oisee", model="facebook/musicgen-melody", track_num=1):
+    title, prompt = extract_title(prompt)
+    if duration < 60:
+        title = "demo - " + title 
+
     videos, wavs = _do_predictions(
         [prompt], [melody], duration, progress=True,
         top_k=topk, top_p=topp, temperature=temperature, cfg_coef=cfg_coef)
@@ -168,20 +256,22 @@ def _predict_one(prompt, melody, duration, topk=None, topp=None, temperature=Non
     print("video: ", rv)
     print("wav: ", rw)
 
-    shorten_prompt = prompt[0:30] if len(prompt) > 30 else prompt
-    filename = shorten_prompt.replace(" ", "_").replace(".", "").replace(",", "_").replace("?", "").replace("/", "").replace("\\", "")
+    #shorten_prompt = prompt[0:30] if len(prompt) > 30 else prompt
+    filename = title.replace(" ", "_").replace(".", "").replace(",", "_").replace("?", "").replace("/", "").replace("\\", "")
     filepath = os.path.join("./_out/", filename)
 
     rv_filepath = filepath + rv.replace("/tmp/", "_")
-    rw_filepath = filepath + rw.replace("/tmp/", "_")
+    rw_filepath = filepath + rw.replace("/tmp/", "_") + ".mp3"
+
+    convert_wav_to_mp3(rw, rw_filepath, prompt, title = title, author=author, album="oiseelator", model=model, track_num=track_num, melody=melody)
 
     shutil.copy(rv, rv_filepath)
-    shutil.copy(rw, rw_filepath)
+    #shutil.copy(rw, rw_filepath)
 
     return rv, rw, rv2, rw2
 
 
-def predict_full(model, decoder, text, melody, duration, topk, topp, temperature, cfg_coef, progress=gr.Progress()):
+def predict_full(model, decoder, text, melody, duration, topk, topp, temperature, cfg_coef, progress=gr.Progress(), author="oisee"):
     global INTERRUPTING
     global USE_DIFFUSION
     INTERRUPTING = False
@@ -210,6 +300,7 @@ def predict_full(model, decoder, text, melody, duration, topk, topp, temperature
 
     rv, rw, rv2, rw2 = None, None, None, None
 
+    track_num = 1
     for prompt in prompts:
         # Condense the paragraph
         condensed_prompt = prompt.strip()
@@ -217,7 +308,8 @@ def predict_full(model, decoder, text, melody, duration, topk, topp, temperature
         if not condensed_prompt:
             continue
 
-        rv, rw, rv2, rw2 = _predict_one(condensed_prompt, melody, duration, topk, topp, temperature, cfg_coef)
+        track_num += 1
+        rv, rw, rv2, rw2 = _predict_one(condensed_prompt, melody, duration, topk, topp, temperature, cfg_coef, author=author, model=model, track_num=track_num)
 
     return rv, rw, rv2, rw2
 
@@ -255,10 +347,12 @@ def ui_full(launch_kwargs):
         with gr.Row():
             with gr.Column():
                 with gr.Row():
-                    text = gr.Text(label="Input Text", interactive=True)
                     with gr.Column():
-                        radio = gr.Radio(["file", "mic"], value="file",
-                                         label="Condition on a melody (optional) File or Mic")
+                        text = gr.Text(label="Prompt", interactive=True, lines=10)
+                        author = gr.Text(label="Author", interactive=True, lines=1, value="oisee")
+                    with gr.Column():
+                        # radio = gr.Radio(["file", "mic"], value="file",
+                        #                  label="Condition on a melody (optional) File or Mic")
                         melody = gr.Audio(source="upload", type="numpy", label="File",
                                           interactive=True, elem_id="melody-input")
                 with gr.Row():
@@ -286,9 +380,9 @@ def ui_full(launch_kwargs):
                 audio_diffusion = gr.Audio(label="MultiBand Diffusion Decoder (wav)", type='filepath')
         submit.click(toggle_diffusion, decoder, [diffusion_output, audio_diffusion], queue=False,
                      show_progress=False).then(predict_full, inputs=[model, decoder, text, melody, duration, topk, topp,
-                                                                     temperature, cfg_coef],
+                                                                     temperature, cfg_coef, author],
                                                outputs=[output, audio_output, diffusion_output, audio_diffusion])
-        radio.change(toggle_audio_src, radio, [melody], queue=False, show_progress=False)
+        #radio.change(toggle_audio_src, "file", [melody], queue=False, show_progress=False)
 
         gr.Examples(
             fn=predict_full,
@@ -300,107 +394,17 @@ def ui_full(launch_kwargs):
                     "Default"
                 ],                
                 [
-                    "90s rock song with electric guitar and heavy drums",
-                    "./assets/oisee_scrolleqs.mp3",
-                    "facebook/musicgen-melody",
-                    "Default"
-                ],                
-                [
-                    "An 80s driving pop song with heavy drums and synth pads in the background",
-                    "./assets/oisee_scrolleqs.mp3",
-                    "facebook/musicgen-melody",
-                    "Default"
-                ],                                              
-                [
-                    "lofi slow bpm electro chill with organic samples and a strong beat",
-                    "./assets/oisee_scrolleqs.mp3",
-                    "facebook/musicgen-melody",
-                    "Default"
-                ],                                                                
-                [
                     "a light and cheerly chiptune breakbeat psychedelic trance track, with syncopated drums, aery pads, and strong emotions",
                     "./assets/oisee_iveseen.mp3",
                     "facebook/musicgen-melody",
                     "Default"
                 ],                
                 [
-                    "90s rock song with electric guitar and heavy drums",
-                    "./assets/oisee_iveseen.mp3",
-                    "facebook/musicgen-melody",
-                    "Default"
-                ],                
-                [
-                    "An 80s driving pop song with heavy drums and synth pads in the background",
-                    "./assets/oisee_iveseen.mp3",
-                    "facebook/musicgen-melody",
-                    "Default"
-                ],                                              
-                [
-                    "lofi slow bpm electro chill with organic samples and a strong beat",
-                    "./assets/oisee_iveseen.mp3",
-                    "facebook/musicgen-melody",
-                    "Default"
-                ],                      
-                [
                     "a light and cheerly chiptune breakbeat psychedelic trance track, with syncopated drums, aery pads, and strong emotions",
                     "./assets/oisee_olia.mp3",
                     "facebook/musicgen-melody",
                     "Default"
                 ],                
-                [
-                    "90s rock song with electric guitar and heavy drums",
-                    "./assets/oisee_olia.mp3",
-                    "facebook/musicgen-melody",
-                    "Default"
-                ],                
-                [
-                    "An 80s driving pop song with heavy drums and synth pads in the background",
-                    "./assets/oisee_olia.mp3",
-                    "facebook/musicgen-melody",
-                    "Default"
-                ],                                              
-                [
-                    "lofi slow bpm electro chill with organic samples and a strong beat",
-                    "./assets/oisee_olia.mp3",
-                    "facebook/musicgen-melody",
-                    "Default"
-                ],                                      
-                # [
-                #     "An 80s driving pop song with heavy drums and synth pads in the background",
-                #     "./assets/bach.mp3",
-                #     "facebook/musicgen-melody",
-                #     "Default"
-                # ],
-                # [
-                #     "A cheerful country song with acoustic guitars",
-                #     "./assets/bolero_ravel.mp3",
-                #     "facebook/musicgen-melody",
-                #     "Default"
-                # ],
-                # [
-                #     "90s rock song with electric guitar and heavy drums",
-                #     None,
-                #     "facebook/musicgen-medium",
-                #     "Default"
-                # ],
-                # [
-                #     "a light and cheerly EDM track, with syncopated drums, aery pads, and strong emotions",
-                #     "./assets/bach.mp3",
-                #     "facebook/musicgen-melody",
-                #     "Default"
-                # ],
-                # [
-                #     "lofi slow bpm electro chill with organic samples",
-                #     None,
-                #     "facebook/musicgen-medium",
-                #     "Default"
-                # ],
-                # [
-                #     "Punk rock with loud drum and power guitar",
-                #     None,
-                #     "facebook/musicgen-medium",
-                #     "MultiBand_Diffusion"
-                # ],
             ],
             inputs=[text, melody, model, decoder],
             outputs=[output]

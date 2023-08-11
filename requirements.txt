@@ -20,3 +20,6 @@ librosa
 gradio
 torchmetrics
 encodec
+pydub
+eyed3
+openai
