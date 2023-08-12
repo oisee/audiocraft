@@ -61,3 +61,5 @@ dataset/*
 /local_scripts
 /notes
 /_out
+/_tmp
+title_by_prompt.cache.json

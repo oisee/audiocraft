@@ -31,7 +31,7 @@ import openai
 import json
 import os
 
-CACHE_FILE = "title_by_prompt.cache.json"
+CACHE_FILE = "/_tmp/title_by_prompt.cache.json"
 
        
 MODEL = None  # Last used model
@@ -187,11 +187,11 @@ def generate_title(prompt):
     
     message = {
         "role": "system",
-        "content": "You are a creative music. Generate a title for the following content."
+        "content": "You are a creative music producer. Generate a short (no more than 4 words) title  for the following prompt."
     }
     user_message = {
         "role": "user",
-        "content": prompt
+        "content": "Please invent a short (no more than 4 words) descriptive or poetic title for the following prompt, do not include prompt into answer. Just title. \\n\\n" + prompt
     }
     
     response = openai.ChatCompletion.create(
